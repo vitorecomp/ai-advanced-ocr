@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Output folder for processed documents
+doc-output/
+docs/
+
+# Virtual environments
+.venv/
+venv/
+
+# Any ad-hoc export files
+*.md
+!README.md

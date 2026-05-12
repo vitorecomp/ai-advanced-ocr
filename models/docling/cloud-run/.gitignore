@@ -1,0 +1,14 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Secret configurations and deployment scripts
+.env
+deploy.sh
+.venv/
+venv/
+
+# Local test documents or markdown exports
+*.pdf
+*.docx
