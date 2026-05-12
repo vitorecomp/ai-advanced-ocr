@@ -1,25 +1,24 @@
 import functions_framework
 from google.cloud import storage
 import os
-import time
-from datetime import datetime
 
-# Suppress PyTorch C++ hardware warnings and allow silent online lazy downloads
+# Suppress PyTorch C++ hardware warnings and force offline mode to use pre-downloaded Docker cache
 os.environ["TORCH_CPP_LOG_LEVEL"] = "ERROR"
-os.environ["HF_HUB_OFFLINE"] = "0"
+os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["HF_HUB_VERBOSITY"] = "error"
 
+import time
+from datetime import datetime
 import logging
 import torch
-
-# Silence third-party INFO logging from RapidOCR and Hugging Face
-logging.getLogger("RapidOCR").setLevel(logging.WARNING)
-logging.getLogger("rapidocr_onnxruntime").setLevel(logging.WARNING)
-logging.getLogger("rapidocr_pdf").setLevel(logging.WARNING)
-logging.getLogger("rapidocr_torch").setLevel(logging.WARNING)
-logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
-
 torch.backends.nnpack.enabled = False
+
+# Configure production cloud logger
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger("CloudEventarcProcessor")
+
 
 from docling.document_converter import DocumentConverter
 
@@ -28,7 +27,6 @@ converter = DocumentConverter()
 
 # Initialize the GCS client globally for connection pooling
 storage_client = storage.Client()
-
 
 # Read the destination bucket from environment variables
 DESTINATION_BUCKET_NAME = os.environ.get("DESTINATION_BUCKET")
@@ -45,10 +43,11 @@ def process_document(cloud_event):
     source_bucket_name = data["bucket"]
     file_name = data["name"]
 
-    print(f"--- Execution Started at {start_utc} ---")
-    print(f"Processing file: {file_name} from bucket: {source_bucket_name}")
+    logger.info(f"--- Execution Started at {start_utc} ---")
+    logger.info(f"Processing file: {file_name} from bucket: {source_bucket_name}")
 
     if not DESTINATION_BUCKET_NAME:
+        logger.error("DESTINATION_BUCKET environment variable is not set.")
         raise ValueError("DESTINATION_BUCKET environment variable is not set.")
 
     source_bucket = storage_client.bucket(source_bucket_name)
@@ -58,6 +57,20 @@ def process_document(cloud_event):
     local_path = f"/tmp/{file_name.replace('/', '_')}"
 
     try:
+        # Determine destination filename
+        base_name = os.path.splitext(file_name)[0]
+        output_filename = f"{base_name}.md"
+
+        dest_bucket = storage_client.bucket(DESTINATION_BUCKET_NAME)
+        dest_blob = dest_bucket.blob(output_filename)
+
+        # Check if document already exists in destination bucket
+        if dest_blob.exists():
+            logger.info(
+                f"Document {output_filename} already exists in destination bucket {DESTINATION_BUCKET_NAME}. Skipping conversion."
+            )
+            return
+
         # Download the file locally
         blob.download_to_filename(local_path)
 
@@ -67,21 +80,14 @@ def process_document(cloud_event):
         markdown_output = result.document.export_to_markdown()
 
         # Upload the processed markdown to the destination bucket
-        dest_bucket = storage_client.bucket(DESTINATION_BUCKET_NAME)
-
-        # Change the extension to .md
-        base_name = os.path.splitext(file_name)[0]
-        output_filename = f"{base_name}.md"
-
-        dest_blob = dest_bucket.blob(output_filename)
         dest_blob.upload_from_string(markdown_output, content_type="text/markdown")
 
-        print(
+        logger.info(
             f"Successfully uploaded parsed Markdown to {DESTINATION_BUCKET_NAME}/{output_filename}"
         )
 
     except Exception as e:
-        print(f"Error processing {file_name}: {e}")
+        logger.error(f"Error processing {file_name}: {e}", exc_info=True)
         raise e
 
     finally:
@@ -94,5 +100,5 @@ def process_document(cloud_event):
         end_utc = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         total_time = end_epoch - start_epoch
 
-        print(f"--- Execution Ended at {end_utc} ---")
-        print(f"Total processing time: {total_time:.2f} seconds")
+        logger.info(f"--- Execution Ended at {end_utc} ---")
+        logger.info(f"Total processing time: {total_time:.2f} seconds")

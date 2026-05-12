@@ -17,7 +17,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --memory 8Gi \
   --concurrency 1 \
   --cpu-boost \
-  --timeout 540s \
+  --timeout 890s \
   --set-env-vars DESTINATION_BUCKET="${OUTPUT_BUCKET}",USE_NNPACK=0 \
   --set-build-env-vars HF_TOKEN="${HF_TOKEN}" \
   --no-allow-unauthenticated

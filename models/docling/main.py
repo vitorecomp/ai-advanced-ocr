@@ -10,6 +10,14 @@ from pathlib import Path
 import logging
 import torch
 
+# Configure foundational application logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("DoclingBatch")
+
 # Silence third-party INFO logging from RapidOCR and Hugging Face
 logging.getLogger("RapidOCR").setLevel(logging.WARNING)
 logging.getLogger("rapidocr_onnxruntime").setLevel(logging.WARNING)
@@ -39,11 +47,13 @@ def process_folder(input_folder_name="docs", output_folder_name="doc-output"):
 
     # Ensure the input directory exists
     if not in_dir.exists():
-        print(f"Error: The input folder '{input_folder_name}' does not exist.")
+        logger.error(
+            f"The target input folder '{input_folder_name}' does not exist."
+        )
         return
 
-    print(
-        f"Starting conversion of files in '{input_folder_name}' to '{output_folder_name}'...\n"
+    logger.info(
+        f"Starting conversion of files in '{input_folder_name}' to '{output_folder_name}'..."
     )
 
     success_count = 0
@@ -59,7 +69,7 @@ def process_folder(input_folder_name="docs", output_folder_name="doc-output"):
         if file_path.is_dir():
             continue
 
-        print(f"Processing: {file_path.name}...")
+        logger.info(f"Processing file: {file_path.name}...")
 
         # Start timer for the individual document
         doc_start_time = time.perf_counter()
@@ -105,31 +115,36 @@ def process_folder(input_folder_name="docs", output_folder_name="doc-output"):
             total_doc_time_sum += total_doc_time
             success_count += 1
 
-            print(f"  -> Pages: {num_pages}")
-            print(f"  -> Saved as: {output_file.name}")
-            print(
+            logger.info(f"  -> Extracted Pages: {num_pages}")
+            logger.info(f"  -> Saved Anonymously as: {output_file.name}")
+            logger.info(
                 f"  -> [Timing] Total: {total_doc_time:.2f}s (Conversion: {conv_time:.2f}s | Export: {export_time:.2f}s)"
             )
 
         except Exception as e:
             doc_end_time = time.perf_counter()
-            print(f"  -> Error processing {file_path.name}: {e}")
-            print(f"  -> [Timing] Failed after {doc_end_time - doc_start_time:.2f}s")
-            # print(traceback.format_exc())
+            logger.error(
+                f"Error processing {file_path.name}: {e}", exc_info=True
+            )
+            logger.error(
+                f"  -> [Timing] Execution failed after {doc_end_time - doc_start_time:.2f}s"
+            )
             failure_count += 1
 
     batch_end_time = time.perf_counter()
 
-    print("\n--- Summary ---")
-    print(f"Successfully converted: {success_count} files")
-    print(f"Failed conversions: {failure_count} files")
-    print(f"Total batch time: {batch_end_time - batch_start_time:.2f} seconds")
+    logger.info("--- Batch Processing Summary ---")
+    logger.info(f"Successfully converted: {success_count} files")
+    logger.info(f"Failed conversions: {failure_count} files")
+    logger.info(
+        f"Total gross batch time: {batch_end_time - batch_start_time:.2f} seconds"
+    )
     if success_count > 0:
         avg_doc_time = total_doc_time_sum / success_count
-        print(f"Average time per document: {avg_doc_time:.2f} seconds")
+        logger.info(f"Average time per document: {avg_doc_time:.2f} seconds")
     if total_pages > 0:
         avg_page_time = total_doc_time_sum / total_pages
-        print(f"Average time per page: {avg_page_time:.2f} seconds")
+        logger.info(f"Average time per page: {avg_page_time:.2f} seconds")
 
 
 if __name__ == "__main__":

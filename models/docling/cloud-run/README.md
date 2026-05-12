@@ -30,7 +30,7 @@ Designed to trigger instantly on Google Cloud Storage uploads via **Eventarc**, 
 
 - **⚡ Concurrency Isolation (`--concurrency 1`)**: Cloud Run instances are constrained to process exactly one document at a time. This dedicates the full, undivided compute power of all allocated CPUs (e.g. 8 vCPUs) directly to PyTorch intra-op thread processing, preventing severe context switching and thread starvation.
 - **🚀 Startup Acceleration (`--cpu-boost`)**: Dynamically allocates bonus CPU compute during container cold-starts to drastically speed up Hugging Face model initializations.
-- **📦 Resilient Remote Caching**: Pre-downloads baseline machine learning weights directly into the container image layer, while quietly permitting lazy fetching for highly complex or optional layout formats without crashing.
+- **📦 Resilient Remote Caching**: Pre-downloads baseline machine learning weights directly into the container image layer and forces offline mode (`HF_HUB_OFFLINE=1`) at runtime to rely strictly on the downloaded cache, avoiding unauthenticated request warnings.
 - **🤫 Silent Execution**: Natively silences hardware compatibility notices (`TORCH_CPP_LOG_LEVEL=ERROR`) and third-party engine output logs (`RapidOCR`) to preserve a pristine Google Cloud Logging trace.
 
 ---

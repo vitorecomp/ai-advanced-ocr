@@ -37,7 +37,7 @@ ai-advanced-ocr/
 Through comprehensive load testing and operational alignment, this repository establishes definitive architectural standards for production ML deployments:
 
 1. **Cloud Run Resource Contention**: PyTorch multi-threaded execution loops heavily contend for shared virtual CPUs. Setting `--concurrency 1` completely isolates memory and execution threads per document trigger, accelerating real-world throughput without thread starvation.
-2. **Pre-Loading Remote Model Artifacts**: Embedding ML snapshots inside the base container layers paired with silent online lazy loading (`HF_HUB_OFFLINE=0`) ensures rapid cold-starts while guaranteeing seamless compatibility across highly specialized document formats.
+2. **Pre-Loading Remote Model Artifacts**: Embedding ML snapshots inside the base container layers paired with offline mode (`HF_HUB_OFFLINE=1`) ensures rapid cold-starts and uses the local cache downloaded during the docker build, preventing unauthenticated request warnings.
 3. **Absolute Execution Silence**: Explicitly muting low-level hardware compatibility traces (`TORCH_CPP_LOG_LEVEL=ERROR`) and overriding third-party library loggers (`logging.getLogger('rapidocr_torch').setLevel(...)`) prevents severe log stream pollution and controls Cloud Logging costs.
 4. **Data Privacy Hardening**: Using dynamic hash filenames (SHA-256) for runtime storage outputs paired with complete gitignore obfuscation rules permanently protects confidential operational documents from version control exposure.
 
